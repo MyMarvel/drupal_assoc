@@ -1,0 +1,5 @@
+name = Transparent Poll
+description = Allows everyone to see who voted and for what.
+core = 7.x
+dependencies[] = poll
+

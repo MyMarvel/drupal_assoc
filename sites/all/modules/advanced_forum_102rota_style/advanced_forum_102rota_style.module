@@ -1,0 +1,138 @@
+<?php
+
+function advanced_forum_102rota_style_ctools_plugin_directory($module, $plugin) {
+  if ($module == 'advanced_forum') {
+    return 'styles';
+  }
+}
+
+/**
+ * Implements hook_comment_view().
+ */
+function advanced_forum_102rota_style_comment_view($comment) {
+  $comment->content['links']['comment']['#links']['comment-jump'] = array (
+      'title' => '<span>' . t("Top") . '</span>',
+      'attributes' => array (
+        'title' => t('Jump to top of page'),
+        'class' => array('af-button-small', 'forum-jump-link'),
+      ),
+      'href' => '',
+      'fragment' => 'forum-topic-top', 
+      'fragment' => 'page-top', 
+      'external' => TRUE,
+      'html' => TRUE,
+      'weight' => 50,
+    );
+
+  if (arg(0)=='forum' && arg(1)=='search') {
+    //krumo($comment);
+    $comment->content['links']['comment']['#links']['to-comment'] = array (
+      'title' => '<span>' . t("Перейти к комментарию") . '</span>',
+      'attributes' => array (
+        'title' => t('При нажатии вы попадете в соответствующую тему форума и автоматически пролистается до этого комментария'),
+        'class' => array('af-button-small'),
+      ),
+      'href' => base_path() . 'comment/' . $comment->cid . '#comment-' . $comment->cid,
+      'external' => TRUE,
+      'html' => TRUE,
+      'weight' => '50',
+    );
+  }
+}
+
+/**
+ * Moves 'Jump to top' link to the end of the array.
+ */
+function advanced_forum_102rota_style_comment_view_alter(&$build) {
+  $link = $build['links']['comment']['#links']['comment-jump'];
+  unset($build['links']['comment']['#links']['comment-jump']);
+  $build['links']['comment']['#links'] = $build['links']['comment']['#links'] + array(
+    'comment-jump' => $link,
+  );
+}
+
+/**
+ * Implements hook_node_view().
+ */
+function advanced_forum_102rota_style_node_view($node) {
+  global $user;
+  if (isset($node->content['links']['node']['#links']['subscribe'])) {
+    $title = $node->content['links']['node']['#links']['subscribe']['title'];
+    $node->content['links']['node']['#links']['subscribe']['title'] = '<span>' . $title . '</span>';
+    $node->content['links']['node']['#links']['subscribe']['html'] = TRUE;
+    $node->content['links']['node']['#links']['subscribe']['attributes'] = array(
+      'title' => t('Subscribe to email notifications about comments in this thread'),
+      'class' => array('af-button-small', 'subscribe'),
+    );
+  }
+}
+
+/**
+ * Changes a link on a node's title to a link to a latest comment in that thread.
+ */
+function advanced_forum_102rota_style_views_post_render(&$view, &$output, &$cache) {
+  foreach($view->result as $key => $row) {
+    if (isset($row->node_new_comments)) {
+      if ($row->node_new_comments > 0) {
+        //Если есть новые комменты, то меняем ссылку на заголовке форумного топика - ссылаемся сразу на последний коммент
+        $page = comment_new_page_count($row->node_comment_statistics_comment_count, $row->node_new_comments, $row->_field_data['nid']['entity']);
+         $link = '';
+         if ($page) $link = '?page=' . $page['page'];
+         $link .= '#new';
+         
+         $add_links_to_titles['link-nid-' . $row->nid] = base_path() . drupal_get_path_alias('node/' . $row->nid) . $link;
+       }
+       else {
+        // Just redirect to a top message in the forum topic.
+        $add_links_to_titles['link-nid-' . $row->nid] = base_path() . drupal_get_path_alias('node/' . $row->nid);
+        /*
+        //Если новых комментов нет, то перенаправлять на последнее сообщение 
+        $last_comment_cid = $row->_field_data['nid']['entity']->cid;
+        if ($last_comment_cid > 0) {
+          //(при необходимости - на последнюю страницу)
+          $comments_per_page = variable_get('comment_default_per_page_' . $row->_field_data['nid']['entity']->type, 50);
+          $page = floor($row->node_comment_statistics_comment_count / $comments_per_page);
+          $link = '';
+          if ($page > 0) $link = '?page=' . $page;
+          $link .= '#comment-' . $last_comment_cid;
+          $add_links_to_titles['link-nid-' . $row->nid] = base_path() . drupal_get_path_alias('node/' . $row->nid) . $link;
+        }
+        else {
+          $add_links_to_titles['link-nid-' . $row->nid] = base_path() . drupal_get_path_alias('node/' . $row->nid);
+        }
+        */
+      }
+    }
+    else {
+      if (isset($row->nid)) {
+        $add_links_to_titles['link-nid-' . $row->nid] = base_path() . drupal_get_path_alias('node/' . $row->nid);
+      }
+    }
+  }
+
+  if (isset($add_links_to_titles) && count($add_links_to_titles) > 0) {
+    $output = strtr($output, $add_links_to_titles);
+  }
+}
+
+
+/*
+* Implements hook_menu().
+*/
+function advanced_forum_102rota_style_menu() {
+  $items = array();
+
+  $items['user/%/log-out'] = array(
+    'title' => t('Log out'),
+    'page callback' => 'advanced_forum_102rota_style_logout',
+    'access arguments' => array('access content'),
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  return $items;
+}
+
+function advanced_forum_102rota_style_logout() {
+  module_load_include('pages.inc', 'user');
+  user_logout();
+}

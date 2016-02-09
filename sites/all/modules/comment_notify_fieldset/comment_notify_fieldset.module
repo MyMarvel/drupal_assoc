@@ -1,0 +1,21 @@
+<?php
+
+function comment_notify_fieldset_form_alter(&$form, &$form_state, $form_id) {
+  if ($form_id=="comment_node_forum_form") {
+    //krumo($form);
+    $fieldset = array(
+      '#type' => 'fieldset',
+      '#title' => t('Notify settings'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+      '#attributes' => array('class' => array('notify_settings_fieldset')),
+    );
+    $form['notify_settings'] = array_merge($fieldset, $form['notify_settings']);
+    global $user;
+    $form['notify_settings']['desc'] = array(
+      '#type' => 'markup',
+      '#markup' => '<div class="comment_notify_description">По <a href="' . base_path() . 'user/' . $user->uid . '/edit">этой ссылке</a> вы можете установить настройки уведомлений по умолчанию для вашей учётной записи, чтобы не изменять постоянно этот пункт при каждом комментировании</div>',
+    );
+  }
+}
+

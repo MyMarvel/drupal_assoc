@@ -1,0 +1,180 @@
+<?php
+
+/**
+ * This module provides a custom functionality for providing own points of view
+ * for each user and each froum topic.
+ */
+function zz_drupal_ru_assoc_node_presave($node){
+  if ($node->type == 'point_of_view') {
+    if (isset($node->original)) {
+      // Check for hacks: we should have only one point of view per forum topic.
+      $original = $node->original;
+      $wrap = entity_metadata_wrapper('node', $original);
+      $parent_id = $wrap->field_forum_topic->value()->nid;
+      if(user_have_more_then_number_point_of_view($parent_id, $node->uid, $maximum = 1)){
+        throw new Exception('Error saving node: You already have one submitted point of view for this forum topic.');
+      }
+      // We should update the parent thread to notify all other users that we changed
+      // our point of view.
+      if (isset($wrap->field_forum_topic)) {
+        $wrap->field_forum_topic->save();
+      }
+    }
+    else {
+      //$wrap = entity_metadata_wrapper('node', $node);
+    }
+    // By some reason this doesn't work for inserting, only for update.
+    //$wrap->field_forum_topic->save(); 
+  }
+}
+
+/**
+ * By some reason hook nod_presave updates parent topic only for updating existing
+ * point of view. We have to handle inserting of point of view manually.
+ */
+function zz_drupal_ru_assoc_node_insert($node) {
+  $wrap = entity_metadata_wrapper('node', $node);
+  if (isset($wrap->field_forum_topic)) {
+    $wrap->field_forum_topic->save();
+  }
+}
+
+function user_have_more_then_number_point_of_view($parent_nid, $uid = NULL, $maximum = 0) {
+  global $user;
+  if (!isset($uid)) {
+    $uid = $user->uid;
+  }
+  $view_res = views_get_view_result('existing_points_of_view', 'default', $parent_nid, $uid);
+  if ($view_res && count($view_res) > $maximum) {
+    return array_pop($view_res)->nid;
+  }
+  else {
+    return FALSE;
+  }
+}
+
+function zz_drupal_ru_assoc_process_node(&$variables) {
+  if ($variables['node']->type=='forum') {
+    $wrap = entity_metadata_wrapper('node', $variables['node']);
+    $parent_nid = $variables['node']->nid;
+    // Only for 'Обсуждения и инициативы'
+    if (isset($wrap->taxonomy_forums) 
+      && $wrap->taxonomy_forums->value()->tid == 3
+      && $wrap->field_show_add_point_button->value() == 1
+      ) {
+      global $user;
+      if ($point_of_view_nid = user_have_more_then_number_point_of_view($parent_nid, $user->uid)) {
+        $url = base_path() . 'node/' . $point_of_view_nid . '/edit';
+      }
+      else {
+        $url = base_path() . 'node/add/point-of-view?field_forum_topic=' . $parent_nid;
+        if (($pattern = $wrap->field_point_of_view_title_patter->value()) != '') {
+          $url .= '&edit[title]=' . $pattern;
+        }
+      }
+
+      $variables['content']['body']['#suffix'] = views_embed_view('existing_points_of_view', 'default', $parent_nid);
+      $variables['content']['body']['#suffix'] .= '<div class="make-your-point-wrapper"><a href="' . $url . '" class="af-button-small make-your-point" style="display:inline-block"><span>Сформулировать свою точку зрения</span></a></div>';
+      $variables['content']['body']['#suffix'] .= '
+      <script>
+        jQuery(".view-existing-points-of-view .views-field-title a").click(function() {
+          jQuery(this).parents(".views-row").find(".expand-body").slideToggle();
+          return false;
+        });
+        function getParameterByName(name) {
+            name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+            var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+                results = regex.exec(location.search);
+            return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+        }
+        var point_of_view = getParameterByName("point");
+        if (point_of_view) {
+          jQuery(".view-existing-points-of-view .point-" + point_of_view + " .expand-body").show();
+          console.log(jQuery(".point-" + point_of_view).offset().top);
+          jQuery("html, body").scrollTop(jQuery(".point-" + point_of_view).offset().top);
+        }
+      </script>';
+    }
+    // Only for 'Обсуждения и инициативы'
+    if (isset($wrap->taxonomy_forums) 
+      && $wrap->taxonomy_forums->value()->tid == 3
+      && $wrap->field_is_active_step->value()
+      ) {
+        $variables['content']['field_slack_url']['#suffix'] = '<br/><b>Заранее подготовленные материалы:</b><br/>' . views_embed_view('user_saved_thoughts', 'block_1', $parent_nid);
+    }
+  }
+}
+
+/**
+ * We have to mark all points of view of that topic as viewed by this user.
+ */
+function zz_drupal_ru_assoc_node_view_alter(&$build) {
+  $build['#post_render'][] = 'zz_drupal_ru_assoc_node_post_render';
+}
+
+function zz_drupal_ru_assoc_node_post_render($markup, $element) {
+  $build = $element;
+  if ($build['#bundle'] == 'forum' && $build['#view_mode'] == 'full') {
+    $node = $build['#node'];
+    global $user;
+    if ($user->uid) {
+      $ids_to_insert = $ids_to_update = array();
+      $db_res = db_query("SELECT entity_id, timestamp FROM field_data_field_forum_topic LEFT JOIN history ON entity_id = nid AND uid = :uid_history WHERE bundle = 'point_of_view' AND field_forum_topic_target_id = :parent_id", array(':parent_id' => $node->nid, ':uid_history' => $user->uid))->fetchAllAssoc('entity_id');
+
+      foreach($db_res as $row) {
+        if (isset($row->timestamp)) {
+          $ids_to_update[] = $row->entity_id;
+        }
+        else {
+          $ids_to_insert[] = $row->entity_id;
+        }
+      }
+
+      if ($ids_to_update) {
+        $ids_to_update = implode(',', $ids_to_update);
+        db_query("UPDATE history SET timestamp = :time WHERE uid = :uid AND nid IN (" . $ids_to_update . ")", array(':time' => REQUEST_TIME, ':uid' => $user->uid));
+      }
+
+      if ($ids_to_insert) {
+        $insert_values = array();
+        foreach($ids_to_insert as $nid) {
+          $insert_values[] = "('" . $user->uid . "', '" . $nid . "', '" . REQUEST_TIME . "')";
+        }
+        $insert_values = implode(',', $insert_values);
+        db_query("INSERT INTO history (uid, nid, timestamp) VALUES " . $insert_values);
+      }
+
+    }
+  }
+  return $markup;
+}
+
+function zz_drupal_ru_assoc_form_alter(&$form, &$form_state, $form_id) {
+  if ($form_id == 'point_of_view_node_form') {
+    if (isset($_GET['field_forum_topic']))  {
+      $parent_nid = $_GET['field_forum_topic'];
+      global $user;
+      if ($point_of_view_nid = user_have_more_then_number_point_of_view($parent_nid, $user->uid)) {
+        drupal_goto(base_path() . 'node/' . $point_of_view_nid . '/edit');
+      }
+    }
+  }
+}
+
+function zz_drupal_ru_assoc_views_pre_render(&$view) {
+  if ($view->name == 'user_saved_thoughts' && $view->current_display == 'block') {
+    global $user;
+    if ($user->uid == 0 || $user->uid != arg(1)) {
+      $view->header['area']->options['content'] = '';
+    }
+  }
+}
+
+function zz_drupal_ru_assoc_views_post_render(&$view, &$output, &$cache) {
+  if ($view->name == 'user_saved_thoughts' && $view->current_display == 'block') {
+    global $user;
+    if (arg(0) == 'user' && (arg(1) == 'login' || arg(1) == 'register' || arg(1) == 'password')) {
+        $output ='';
+    }
+  }
+}

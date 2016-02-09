@@ -1,0 +1,76 @@
+<?php
+
+/**
+ * This solution requires a hacking of drupal core poll module.
+ * Please, don't do it and find a way how to implement this more gracefully.
+ * Right now open modules/poll.module and hack two strings:
+ * line 45, poll_bar theme function, add the last 'voted_names' => NULL argument
+ * to this theme function;
+ * line 834, poll_view_results() function, add 'voted_names' => 
+ * isset($choice['voted_names']) ? $choice['voted_names'] : '')
+ * as the last argument to theme function.
+ * That's it, flush drupal cache and try to submit something.
+ */
+function poll_transparent_node_load($nodes, $types) {
+  global $user;
+  foreach ($nodes as $node) {
+    if ($node->type=='poll' && arg(0)=='node') {
+      $votes = poll_transparent_get_votes($node);
+      if (is_array($node->choice) && $votes) { //Если есть хоть один голос
+        $choice_texts = array();
+        foreach ($votes as $vote) {
+          if (isset($choice_texts[$vote['choice_id']]) && $choice_texts[$vote['choice_id']] != '') $comma = ', '; 
+          else { 
+            $comma = ''; 
+            $choice_texts[$vote['choice_id']] = '';
+          }
+          $choice_texts[$vote['choice_id']] .= $comma . $vote['name'];
+        }
+        foreach ($node->choice as $k => $choice) {
+          if (isset($choice_texts[$k]) && $choice_texts[$k] != '') {
+            $node->choice[$k]['voted_names'] = ' (' . $choice_texts[$k] . ')';
+          }
+        }
+      }
+    }
+  }
+}
+
+function poll_transparent_get_votes($node) {
+//copied from poll.pages.inc function poll_votes()
+  $votes_per_page = 20;
+  drupal_set_title($node->title);
+
+  $header[] = array('data' => t('Visitor'), 'field' => 'u.realname');
+  $header[] = array('data' => t('Vote'), 'field' => 'pc.chtext');
+  $header[] = array('data' => t('Timestamp'), 'field' => 'pv.timestamp', 'sort' => 'desc');
+
+  $select = db_select('poll_vote', 'pv')->extend('PagerDefault')->extend('TableSort');
+  $select->join('poll_choice', 'pc', 'pv.chid = pc.chid');
+  $select->join('realname', 'u', 'pv.uid = u.uid');
+  $queried_votes = $select
+    ->addTag('translatable')
+    ->fields('pv', array('chid', 'uid', 'hostname', 'timestamp', 'nid')) 
+    ->fields('pc', array('chtext'))
+    ->fields('u', array('realname'))
+    ->condition('pv.nid', $node->nid)
+    ->limit($votes_per_page)
+    ->orderByHeader($header)
+    ->execute();
+
+  $rows = array();
+  foreach ($queried_votes as $vote) {
+    $rows[] = array(
+      'choice_id' => $vote->chid,
+      'name' => $vote->realname ? $vote->realname : check_plain($vote->hostname),
+      'txt' => check_plain($vote->chtext),
+      'date' => format_date($vote->timestamp),
+    );
+  }
+
+  return $rows;
+}
+
+function poll_transparent_preprocess_poll_bar(&$variables) {
+  $variables['title'] .= $variables['voted_names'];
+}

@@ -1,0 +1,58 @@
+/* Styles for mobile devices */
+
+.forum-post-panel-sub {
+display:none; 
+}
+
+.forum-post-panel-main {
+margin-left: 0;
+}
+
+#site-name h1 {
+  font-size:40px;
+  line-height:1em;
+}
+
+#site-name {
+margin:0;
+}
+#header {
+  margin-top:5px;
+}
+#header .inner {
+  padding-bottom:0;
+}
+
+.author-name-for-mobile {
+  display:block;
+  font-weight:bold;
+  font-size:16px;
+  padding-bottom:0.5em;
+}
+
+.forum-post-panel-main {
+  padding-top:0;
+  border-left:none;
+  border-right:1px solid #CECECE;
+}
+
+.forum-table-topics td.views-field-topic-icon,
+.forum-table thead th.views-field-topic-icon  {
+  display:none;
+}
+
+.forum-table.forum-table-forums td.forum-number-topics,
+.forum-table.forum-table-forums td.forum-list-icon,
+.forum-table.forum-table-forums th.forum-icon,
+.forum-table.forum-table-forums th.forum-topics {
+  display:none;
+}
+
+.parcels_big_form .form-submit {
+  padding: 12px 1px 12px 1px;
+  font-size:75%;
+}
+
+.parcels_big_form .show_link {
+margin-top:-12px;
+}

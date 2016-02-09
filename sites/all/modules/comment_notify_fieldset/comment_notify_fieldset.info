@@ -1,0 +1,6 @@
+name = comment_notify_fieldset
+description = Moved notify settings at comment to a collapsiable fieldset
+core = 7.x
+package = Nikita_Petrov
+
+

@@ -1,0 +1,79 @@
+/* Styles for mobile devices */
+
+.container {
+margin:0 auto;
+width:88%;
+padding:0;
+
+}
+
+.container .sixteen.columns {
+margin:0;
+width:100%;
+padding:0;
+}
+
+.forum-post .author-pane .picture img {
+  max-width:115px;
+}
+
+.forum-post .author-pane .author-pane-line,
+.forum-post .author-pane-link span  {
+  font-size:10px;
+}
+
+.forum-post .author-pane .author-pane-line.author-name {
+  font-size:20px;
+}
+
+div.forum-post-panel-sub {
+  width:115px;
+}
+
+.forum-post-panel-main { 
+margin-left:140px;
+font-size:16px;
+}
+
+.bottom-author-pane {
+  display:none;
+}
+
+.forum-bottom-date {
+  font-size:10px;
+  width:90px;
+}
+
+h1#page-title {
+  font-size:30px;
+  line-height:1.1em;
+}
+
+.notify_settings_fieldset {
+  display:none;
+}
+
+.forum-node-create-links {
+  width:301px;
+}
+
+.header-left {
+  display:none;
+}
+
+.view-dem {
+  display:none;
+}
+
+.parcels_big_form {
+height: 170px;
+}
+
+.view-parcels .views-exposed-widgets {
+    float: none;
+    width: 420px;
+}
+
+.cats_overlay {
+  display: none;
+}

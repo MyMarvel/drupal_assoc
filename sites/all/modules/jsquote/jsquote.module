@@ -1,0 +1,47 @@
+<?php
+/**
+ * @file
+ * TODO: Enter file description here.
+ */
+
+/**
+ * Implements hook_init().
+ */
+function jsquote_init() {
+  drupal_add_js(drupal_get_path('module', 'jsquote').'/js/jsquote.js');
+}
+
+/**
+ * Implements hook_comment_view().
+ */
+function jsquote_comment_view($comment) {
+  $key = jsquote_check_for_applying_patch($comment);  
+  if ($key) {
+    jsquote_add_author_data($comment, $key);
+  }
+}
+
+function jsquote_node_view($node, $view_mode) {
+  $key = jsquote_check_for_applying_patch($node);  
+  if ($key) {
+    jsquote_add_author_data($node, $key);
+  }
+}
+
+/**
+ *  Checking - if already applied patch http://drupal.org/node/1929658#comment-7301304 
+ */
+function jsquote_check_for_applying_patch(&$object) {
+  $key = '';
+  if (isset($object->content['links']['comment']['#links']['quote'])) {
+    $key = 'comment';
+  }
+  elseif (isset($object->content['links']['quote']['#links']['quote'])) {
+    $key = 'quote';
+  }
+  return $key;
+}
+
+function jsquote_add_author_data(&$object, $key) {
+  $object->content['links'][$key]['#links']['quote']['attributes']['data-name'] = $object->name;
+}

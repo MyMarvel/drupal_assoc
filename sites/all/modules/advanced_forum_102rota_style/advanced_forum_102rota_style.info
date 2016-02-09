@@ -1,0 +1,7 @@
+name = Advanced Forum 102 rota Style
+description = Additional Advanced Forum Style for "102 rota" strikeball team
+dependencies[] = advanced_forum
+core = 7.x
+configure = admin/config/content/advanced-forum
+
+

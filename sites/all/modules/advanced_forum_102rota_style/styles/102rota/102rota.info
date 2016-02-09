@@ -1,0 +1,7 @@
+
+name = 102rota
+description = War style.
+version = 2.x
+base style = silver_bells
+core = "7.x"
+

@@ -1,0 +1,5 @@
+name = Jsquote
+description = Javascript-based quoting
+dependencies[] = quote
+core = 7.x
+files[] = jsquote.module

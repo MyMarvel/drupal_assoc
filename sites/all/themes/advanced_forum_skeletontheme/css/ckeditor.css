@@ -1,0 +1,12 @@
+/**
+ * @file
+ * Custom styles only for CKEditor textarea
+ *
+ */
+
+body {
+  font-size: 16px;
+  border-top: none;
+  padding: 0.5em;
+  color: #444444;
+}
